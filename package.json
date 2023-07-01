@@ -20,6 +20,7 @@
   "homepage": "https://github.com/rikuchoy/12-MySQL-Employee-Tracker#readme",
   "dependencies": {
     "inquirer": "^8.2.4",
-    "mysql": "^2.18.1"
+    "mysql": "^2.18.1",
+    "mysql2": "^3.4.2"
   }
 }

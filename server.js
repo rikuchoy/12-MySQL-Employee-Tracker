@@ -1,6 +1,12 @@
 const inquirer = require('inquirer');
 const db = require('./db/connection');
 
+db.connect(err => {
+    if (err) throw err;
+    console.log('Database connected.');
+    employee_tracker();
+});
+
 const employee_tracker = function () {
     inquirer.prompt([
         {
@@ -126,76 +132,89 @@ const employee_tracker = function () {
                 });
             });
         } else if (answers.prompt === 'Add An Employee') {
-            db.query(`SELECT * FROM role`, (err, result) => {
-                if (err) throw err;
-
-                inquirer.prompt([
-                    {
-                        // Employee First Name
-                        type: 'input',
-                        name: 'first_name',
-                        message: 'What is the employee\'s first name?',
-                        validate: firstNameInput => {
-                            if (firstNameInput) {
-                                return true;
-                            } else {
-                                console.log('Please Add A First Name!');
-                                return false;
-                            }
-                        }
-                    },
-                    {
-                        // Employee Last Name
-                        type: 'input',
-                        name: 'last_name',
-                        message: 'What is the employee\'s last name?',
-                        validate: lastNameInput => {
-                            if (lastNameInput) {
-                                return true;
-                            } else {
-                                console.log('Please Add A Last Name!');
-                                return false;
-                            }
-                        }
-                    },
-                    {
-                        // Employee Role
-                        type: 'list',
-                        name: 'role',
-                        message: 'What is the employee\'s role?',
-                        choices: () => {
-                            var array = [];
-                            for (var i = 0; i < result.length; i++) {
-                                array.push(result[i].title);
-                            }
-                            return array;
-                        }
-                    },
-                    {
-                        // Employee Manager
-                        type: 'list',
-                        name: 'manager',
-                        message: 'Who is the employee\'s manager?',
-                        choices: ['None'].concat(result.map(item => item.last_name))
-                    }
-                ]).then((answers) => {
-                    var role_id;
-                    var manager_id;
-                    for (var i = 0; i < result.length; i++) {
-                        if (result[i].title === answers.role) {
-                            role_id = result[i].id;
-                        }
-                        if (answers.manager === result[i].last_name) {
-                            manager_id = result[i].id;
-                        }
-                    }
-                    db.query(`INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)`, [answers.first_name, answers.last_name, role_id, manager_id], (err, result) => {
+                db.query(`SELECT * FROM role`, (err, roleResult) => {
+                    if (err) throw err;
+            
+                    db.query(`SELECT * FROM employee`, (err, employeeResult) => {
                         if (err) throw err;
-                        console.log(`Added ${answers.first_name} ${answers.last_name} to the database.`)
-                        employee_tracker();
+            
+                        inquirer.prompt([
+                            {
+                                // Employee First Name
+                                type: 'input',
+                                name: 'first_name',
+                                message: 'What is the employee\'s first name?',
+                                validate: firstNameInput => {
+                                    if (firstNameInput) {
+                                        return true;
+                                    } else {
+                                        console.log('Please Add A First Name!');
+                                        return false;
+                                    }
+                                }
+                            },
+                            {
+                                // Employee Last Name
+                                type: 'input',
+                                name: 'last_name',
+                                message: 'What is the employee\'s last name?',
+                                validate: lastNameInput => {
+                                    if (lastNameInput) {
+                                        return true;
+                                    } else {
+                                        console.log('Please Add A Last Name!');
+                                        return false;
+                                    }
+                                }
+                            },
+                            {
+                                // Employee Role
+                                type: 'list',
+                                name: 'role',
+                                message: 'What is the employee\'s role?',
+                                choices: () => {
+                                    var array = [];
+                                    for (var i = 0; i < roleResult.length; i++) {
+                                        array.push(roleResult[i].title);
+                                    }
+                                    var newArray = [...new Set(array)];
+                                    return newArray;
+                                }
+                            },
+                            {
+                                // Employee Manager
+                                type: 'list',
+                                name: 'manager',
+                                message: 'Who is the employee\'s manager?',
+                                choices: () => {
+                                    var array = ['None'];
+                                    for (var i = 0; i < employeeResult.length; i++) {
+                                        array.push(employeeResult[i].last_name);
+                                    }
+                                    return array;
+                                }
+                            }
+                        ]).then((answers) => {
+                            var role_id;
+                            var manager_id;
+                            for (var i = 0; i < roleResult.length; i++) {
+                                if (roleResult[i].title === answers.role) {
+                                    role_id = roleResult[i].id;
+                                }
+                            }
+                            for (var i = 0; i < employeeResult.length; i++) {
+                                if (answers.manager === employeeResult[i].last_name) {
+                                    manager_id = employeeResult[i].id;
+                                }
+                            }
+                            db.query(`INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)`, [answers.first_name, answers.last_name, role_id, manager_id], (err, result) => {
+                                if (err) throw err;
+                                console.log(`Added ${answers.first_name} ${answers.last_name} to the database.`)
+                                employee_tracker();
+                            });
+                        });
                     });
                 });
-            });
         } else if (answers.prompt === 'Update An Employee Role') {
             db.query(`SELECT * FROM employee`, (err, employeeResult) => {
                 if (err) throw err;
@@ -251,11 +270,11 @@ const employee_tracker = function () {
                 });
             });
         } else if (answers.prompt === 'Log Out') {
+            db.end();
             console.log('Logging out of the Employee Tracker.');
-            return;
         }
     });
 };
 
-employee_tracker();
+
 
